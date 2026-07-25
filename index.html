@@ -43,6 +43,10 @@
       </div>
       
       <div class="header-right">
+        <button id="sync-status-btn" class="icon-btn sync-btn" title="실시간 동기화 설정">
+          <i class="ri-cloud-line"></i>
+          <span class="sync-dot"></span>
+        </button>
         <button id="theme-toggle-btn" class="icon-btn" title="테마 변경">
           <i class="ri-sun-line light-icon"></i>
           <i class="ri-moon-clear-line dark-icon"></i>
@@ -305,6 +309,30 @@
           </div>
           <input type="file" id="import-json-input" accept=".json" class="hidden">
           <button id="import-json-btn" class="secondary-btn"><i class="ri-file-upload-line"></i> 파일 선택하여 복원</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Code Settings Modal -->
+  <div id="sync-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h3><i class="ri-refresh-line"></i> 실시간 클라우드 동기화 설정</h3>
+        <button class="close-modal-btn" id="close-sync-modal"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="backup-modal-body">
+        <div class="sync-info-box">
+          <p>PC와 핸드폰에 <strong>동일한 동기화 코드</strong>를 설정하면 어느 한쪽에서 변경한 할 일 데이터가 <strong>실시간으로 자동 연결</strong>됩니다.</p>
+        </div>
+        <div class="form-group full-width">
+          <label><i class="ri-key-2-line"></i> 나만의 동기화 코드</label>
+          <input type="text" id="sync-code-input" placeholder="예: polly2026" value="polly2026">
+          <small class="help-text">핸드폰과 PC에 이 코드가 똑같이 입력되어 있어야 동기화됩니다.</small>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancel-sync-btn">취소</button>
+          <button type="button" class="primary-btn" id="save-sync-code-btn">동기화 연동 시작</button>
         </div>
       </div>
     </div>

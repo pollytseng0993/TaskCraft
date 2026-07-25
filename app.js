@@ -1,5 +1,5 @@
 /**
- * TaskCraft - Complete Web Application Logic
+ * TaskCraft - Complete Web Application Logic with Real-time Cloud Sync
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -8,8 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------
   const STORAGE_KEY_TASKS = 'taskcraft_tasks_v1';
   const STORAGE_KEY_THEME = 'taskcraft_theme_v1';
+  const STORAGE_KEY_SYNC_CODE = 'taskcraft_synccode_v1';
 
   let tasks = loadTasks();
+  let syncCode = localStorage.getItem(STORAGE_KEY_SYNC_CODE) || 'polly2026';
+  let lastSyncTimestamp = 0;
+  let isSyncing = false;
+
   let currentFilterTab = 'all'; // 'all', 'active', 'completed'
   let currentCategory = 'all';
   let currentSort = 'newest';
@@ -21,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const addTaskForm = document.getElementById('add-task-form');
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
   const backupBtn = document.getElementById('backup-btn');
+  const syncStatusBtn = document.getElementById('sync-status-btn');
+  const syncDot = document.querySelector('.sync-dot');
 
   // Search & Filter DOM Elements
   const searchInput = document.getElementById('search-input');
@@ -55,12 +62,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const importJsonBtn = document.getElementById('import-json-btn');
   const importJsonInput = document.getElementById('import-json-input');
 
+  const syncModal = document.getElementById('sync-modal');
+  const closeSyncModalBtn = document.getElementById('close-sync-modal');
+  const cancelSyncBtn = document.getElementById('cancel-sync-btn');
+  const saveSyncCodeBtn = document.getElementById('save-sync-code-btn');
+  const syncCodeInput = document.getElementById('sync-code-input');
+
   // Set today's date in header & date input default
   initHeaderDate();
   initTheme();
 
-  // Initial render
+  // Initial render & sync start
   renderApp();
+  initCloudSync();
 
   // --------------------------------------------------------------------------
   // 2. Storage & Demo Data Loader
@@ -114,8 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
   }
 
-  function saveTasks() {
+  function saveTasks(skipCloudPush = false) {
     localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
+    if (!skipCloudPush) {
+      pushToCloudSync();
+    }
   }
 
   function initHeaderDate() {
@@ -126,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
       dateEl.textContent = today.toLocaleDateString('ko-KR', options);
     }
     
-    // Set default date in add form to today
     const dueDateInput = document.getElementById('task-duedate');
     if (dueDateInput) {
       dueDateInput.value = today.toISOString().split('T')[0];
@@ -150,7 +166,103 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 4. Task CRUD Logic
+  // 4. Real-time Cloud Sync Engine (Firebase Realtime DB REST Backend)
+  // --------------------------------------------------------------------------
+  function getSyncEndpoint() {
+    const cleanCode = encodeURIComponent(syncCode.trim().toLowerCase());
+    return `https://taskcraft-sync-default-rtdb.firebaseio.com/user_sync/${cleanCode}.json`;
+  }
+
+  function initCloudSync() {
+    syncCodeInput.value = syncCode;
+    pullFromCloudSync();
+    // Poll cloud sync every 2.5 seconds for real-time instant update across PC and Mobile
+    setInterval(pullFromCloudSync, 2500);
+
+    // Sync immediately when window becomes visible / focused
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        pullFromCloudSync();
+      }
+    });
+  }
+
+  async function pushToCloudSync() {
+    if (!syncCode) return;
+    try {
+      if (syncDot) syncDot.className = 'sync-dot syncing';
+      const now = Date.now();
+      lastSyncTimestamp = now;
+
+      const payload = {
+        updatedAt: now,
+        tasks: tasks
+      };
+
+      await fetch(getSyncEndpoint(), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (syncDot) syncDot.className = 'sync-dot';
+    } catch (e) {
+      console.warn('Cloud sync push failed', e);
+      if (syncDot) syncDot.className = 'sync-dot offline';
+    }
+  }
+
+  async function pullFromCloudSync() {
+    if (!syncCode || isSyncing) return;
+    try {
+      isSyncing = true;
+      const res = await fetch(getSyncEndpoint());
+      if (!res.ok) {
+        isSyncing = false;
+        return;
+      }
+
+      const data = await res.json();
+      if (data && data.updatedAt && data.updatedAt > lastSyncTimestamp && Array.isArray(data.tasks)) {
+        lastSyncTimestamp = data.updatedAt;
+        tasks = data.tasks;
+        saveTasks(true); // Save locally without re-pushing
+        renderApp();
+      }
+      if (syncDot) syncDot.className = 'sync-dot';
+    } catch (e) {
+      if (syncDot) syncDot.className = 'sync-dot offline';
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  // Sync Modal Handlers
+  syncStatusBtn.addEventListener('click', () => {
+    syncCodeInput.value = syncCode;
+    syncModal.classList.remove('hidden');
+  });
+
+  closeSyncModalBtn.addEventListener('click', () => syncModal.classList.add('hidden'));
+  cancelSyncBtn.addEventListener('click', () => syncModal.classList.add('hidden'));
+
+  saveSyncCodeBtn.addEventListener('click', () => {
+    const newCode = syncCodeInput.value.trim();
+    if (!newCode) {
+      alert('동기화 코드를 입력해 주세요.');
+      return;
+    }
+    syncCode = newCode;
+    localStorage.setItem(STORAGE_KEY_SYNC_CODE, syncCode);
+    lastSyncTimestamp = 0; // Force refresh from new sync room
+    pushToCloudSync();
+    pullFromCloudSync();
+    syncModal.classList.add('hidden');
+    showToast(`동기화 코드가 '${syncCode}'(으)로 연동되었습니다!`, 'success');
+  });
+
+  // --------------------------------------------------------------------------
+  // 5. Task CRUD Logic
   // --------------------------------------------------------------------------
   addTaskForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -178,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
     saveTasks();
     renderApp();
 
-    // Reset Form
     titleInput.value = '';
     noteInput.value = '';
     showToast('새로운 할 일이 추가되었습니다!', 'success');
@@ -259,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 5. Search, Filter & Sorting Listeners
+  // 6. Search, Filter & Sorting Listeners
   // --------------------------------------------------------------------------
   searchInput.addEventListener('input', (e) => {
     searchQuery = e.target.value.toLowerCase().trim();
@@ -298,18 +409,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 6. Filtering & Sorting Calculation
+  // 7. Filtering & Sorting Calculation
   // --------------------------------------------------------------------------
   function getFilteredAndSortedTasks() {
     return tasks.filter(task => {
-      // Status Filter Tab
       if (currentFilterTab === 'active' && task.completed) return false;
       if (currentFilterTab === 'completed' && !task.completed) return false;
-
-      // Category Filter
       if (currentCategory !== 'all' && task.category !== currentCategory) return false;
 
-      // Search Query
       if (searchQuery) {
         const matchesTitle = task.title.toLowerCase().includes(searchQuery);
         const matchesNote = task.note && task.note.toLowerCase().includes(searchQuery);
@@ -335,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------------------------------
-  // 7. Render App & UI Update Engine
+  // 8. Render App & UI Update Engine
   // --------------------------------------------------------------------------
   function renderApp() {
     updateDashboard();
@@ -376,11 +483,9 @@ document.addEventListener('DOMContentLoaded', () => {
     tabActiveCount.textContent = active;
     tabCompletedCount.textContent = completed;
 
-    // Calculate percentage
     const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
     progressPercentageEl.textContent = `${percent}%`;
 
-    // SVG Circular Progress Ring Update (r=32 => circumference = 2 * PI * 32 ≈ 201.06)
     const strokeDashoffset = 201.06 - (201.06 * percent) / 100;
     progressCircle.style.strokeDashoffset = strokeDashoffset;
 
@@ -400,7 +505,6 @@ document.addEventListener('DOMContentLoaded', () => {
     li.className = `task-item ${task.completed ? 'completed' : ''}`;
     li.setAttribute('data-id', task.id);
 
-    // Category Label & Map
     const categoryMap = {
       work: { name: '업무', class: 'cat-work', icon: '💼' },
       personal: { name: '개인', class: 'cat-personal', icon: '👤' },
@@ -411,7 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const catInfo = categoryMap[task.category] || { name: task.category, class: '', icon: '📌' };
 
-    // Priority Map
     const priorityMap = {
       high: { name: '높음', class: 'prio-high' },
       medium: { name: '중간', class: 'prio-medium' },
@@ -419,7 +522,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const prioInfo = priorityMap[task.priority] || { name: task.priority, class: '' };
 
-    // Due Date Badge Text & Alert
     let dueDateHTML = '';
     if (task.dueDate) {
       const today = new Date();
@@ -466,7 +568,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
 
-    // Event Listeners for Item Actions
     const checkbox = li.querySelector('.task-checkbox');
     checkbox.addEventListener('change', () => toggleTaskCompletion(task.id));
 
@@ -480,7 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------------------------------
-  // 8. Backup / Export & Import
+  // 9. Backup / Export & Import
   // --------------------------------------------------------------------------
   backupBtn.addEventListener('click', () => {
     backupModal.classList.remove('hidden');
@@ -530,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 9. Utilities & Toast System
+  // 10. Utilities & Toast System
   // --------------------------------------------------------------------------
   function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, 
