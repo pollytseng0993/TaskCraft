@@ -167,43 +167,59 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 4. Real-time Cloud Sync Engine
+  // 4. Real-time Cloud Sync Engine (GitHub Gist Backend)
   // --------------------------------------------------------------------------
-  function getSyncEndpoint() {
-    const cleanCode = encodeURIComponent(syncCode.trim().toLowerCase());
-    return `https://taskcraft-sync-default-rtdb.firebaseio.com/user_sync_v2/${cleanCode}.json`;
-  }
+  // GitHub Gist ID - this is the actual cloud storage
+  const GIST_ID = 'fc14d68995827b35cced728809dd1c0b';
+  const GIST_FILE = 'taskcraft_sync.json';
+  // Raw Gist URL (publicly readable, no auth needed for reads)
+  const GIST_RAW_BASE = `https://gist.githubusercontent.com/pollytseng0993/${GIST_ID}/raw/`;
+  // GitHub API URL for writes (uses gh token via a proxy or public read)
+  const GIST_API_URL = `https://api.github.com/gists/${GIST_ID}`;
 
   function initCloudSync() {
     syncCodeInput.value = syncCode;
     pullFromCloudSync();
-
-    // Poll cloud sync every 2 seconds for instant real-time sync across PC & Mobile
-    setInterval(pullFromCloudSync, 2000);
+    // Poll every 3 seconds for real-time sync
+    setInterval(pullFromCloudSync, 3000);
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
+        lastSyncTimestamp = 0;
         pullFromCloudSync();
       }
     });
   }
 
   async function pushToCloudSync() {
-    if (!syncCode) return;
     try {
       if (syncDot) syncDot.className = 'sync-dot syncing';
       const now = Date.now();
       lastSyncTimestamp = now;
 
-      const payload = {
-        updatedAt: now,
-        tasks: tasks
-      };
+      const payload = { updatedAt: now, tasks: tasks };
+      const body = JSON.stringify(payload);
 
-      await fetch(getSyncEndpoint(), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      // Write via GitHub Gist API - needs token
+      const token = await getGhToken();
+      if (!token) {
+        // Fallback: use localStorage only
+        if (syncDot) syncDot.className = 'sync-dot offline';
+        return;
+      }
+
+      await fetch(GIST_API_URL, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28'
+        },
+        body: JSON.stringify({
+          files: {
+            [GIST_FILE]: { content: body }
+          }
+        })
       });
 
       if (syncDot) syncDot.className = 'sync-dot';
@@ -214,45 +230,67 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pullFromCloudSync() {
-    if (!syncCode || isSyncing) return;
+    if (isSyncing) return;
     try {
       isSyncing = true;
-      const res = await fetch(getSyncEndpoint());
-      if (!res.ok) {
-        isSyncing = false;
-        return;
+
+      // Read via GitHub API with no-cache to always get latest
+      const token = await getGhToken();
+      const headers = { 'X-GitHub-Api-Version': '2022-11-28' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(GIST_API_URL, {
+        headers: headers,
+        cache: 'no-store'
+      });
+      if (!res.ok) { isSyncing = false; return; }
+
+      const gistData = await res.json();
+      const fileContent = gistData.files && gistData.files[GIST_FILE]
+        ? gistData.files[GIST_FILE].content
+        : null;
+
+      if (fileContent) {
+        const data = JSON.parse(fileContent);
+        if (data && data.updatedAt && data.updatedAt > lastSyncTimestamp && Array.isArray(data.tasks)) {
+          lastSyncTimestamp = data.updatedAt;
+          tasks = data.tasks;
+          saveTasks(true);
+          renderApp();
+        }
       }
 
-      const data = await res.json();
-      if (data && data.updatedAt && data.updatedAt > lastSyncTimestamp && Array.isArray(data.tasks)) {
-        lastSyncTimestamp = data.updatedAt;
-        tasks = data.tasks;
-        saveTasks(true); // Save locally without re-pushing
-        renderApp();
-      } else if (!data && tasks.length > 0) {
-        // If cloud is empty, automatically upload local tasks
-        pushToCloudSync();
-      }
       if (syncDot) syncDot.className = 'sync-dot';
     } catch (e) {
+      console.warn('Cloud pull failed', e);
       if (syncDot) syncDot.className = 'sync-dot offline';
     } finally {
       isSyncing = false;
     }
   }
 
+  async function getGhToken() {
+    // Token is stored in localStorage by the user after setup
+    return localStorage.getItem('taskcraft_gh_token') || null;
+  }
+
   // Force Manual Push/Pull Handlers
   forceUploadBtn.addEventListener('click', async () => {
+    if (!localStorage.getItem('taskcraft_gh_token')) {
+      showToast('먼저 GitHub 토큰을 설정해 주세요.', 'danger');
+      return;
+    }
+    lastSyncTimestamp = 0;
     await pushToCloudSync();
     syncModal.classList.add('hidden');
     showToast('현재 기기의 할 일이 구름으로 업로드되었습니다! ☁️', 'success');
   });
 
   forceDownloadBtn.addEventListener('click', async () => {
-    lastSyncTimestamp = 0; // Force pull
+    lastSyncTimestamp = 0;
     await pullFromCloudSync();
     syncModal.classList.add('hidden');
-    showToast('구름에서 최신 할 일을 다운로드했습니다! ☁️', 'success');
+    showToast('구름에서 최신 할 일을 불러왔습니다! ☁️', 'success');
   });
 
   // Sync Modal Handlers
@@ -265,18 +303,17 @@ document.addEventListener('DOMContentLoaded', () => {
   cancelSyncBtn.addEventListener('click', () => syncModal.classList.add('hidden'));
 
   saveSyncCodeBtn.addEventListener('click', async () => {
-    const newCode = syncCodeInput.value.trim();
-    if (!newCode) {
-      alert('동기화 코드를 입력해 주세요.');
-      return;
+    const ghTokenInput = document.getElementById('gh-token-input');
+    const newToken = ghTokenInput ? ghTokenInput.value.trim() : '';
+
+    if (newToken) {
+      localStorage.setItem('taskcraft_gh_token', newToken);
     }
-    syncCode = newCode;
-    localStorage.setItem(STORAGE_KEY_SYNC_CODE, syncCode);
+
     lastSyncTimestamp = 0;
-    await pushToCloudSync();
     await pullFromCloudSync();
     syncModal.classList.add('hidden');
-    showToast(`동기화 코드가 '${syncCode}'(으)로 연결되었습니다!`, 'success');
+    showToast('동기화 토큰이 저장되었습니다! 이제 실시간 동기화가 활성화됩니다.', 'success');
   });
 
   // --------------------------------------------------------------------------

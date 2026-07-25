@@ -323,8 +323,15 @@
       </div>
       <div class="backup-modal-body">
         <div class="sync-info-box">
-          <p>PC와 핸드폰에 <strong>동일한 동기화 코드</strong>를 설정하면 어느 한쪽에서 변경한 할 일 데이터가 <strong>실시간으로 자동 연결</strong>됩니다.</p>
+          <p>PC와 핸드폰 양쪽에 <strong>동일한 GitHub Personal Access Token</strong>을 설정하면 할 일 데이터가 <strong>실시간으로 자동 동기화</strong>됩니다.</p>
         </div>
+
+        <div class="form-group full-width">
+          <label><i class="ri-key-2-line"></i> GitHub Personal Access Token</label>
+          <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxx 형식의 토큰 입력" autocomplete="off">
+          <small class="help-text">💡 <a href="https://github.com/settings/tokens/new?scopes=gist&description=TaskCraft+Sync" target="_blank" style="color:var(--primary-accent)">여기 클릭하여 토큰 생성</a> → Gist 권한만 선택 → Generate → 복사 후 위에 붙여넣기</small>
+        </div>
+
         <div class="form-group full-width">
           <label><i class="ri-key-2-line"></i> 나만의 동기화 코드</label>
           <input type="text" id="sync-code-input" placeholder="예: polly2026" value="polly2026">
