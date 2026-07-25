@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskCraft - 프리미엄 할 일 관리 웹 애플리케이션</title>
+  
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/192x192/2705.png">
+  <link rel="icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2705.png">
+  
+  <!-- Google Fonts & Remix Icon -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-background">
+    <div class="glow-sphere sphere-1"></div>
+    <div class="glow-sphere sphere-2"></div>
+    <div class="glow-sphere sphere-3"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-icon">
+            <i class="ri-checkbox-circle-fill"></i>
+          </div>
+          <div class="brand-text">
+            <h1>TaskCraft</h1>
+            <span class="sub-title" id="current-date">2026년 7월 25일</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <button id="theme-toggle-btn" class="icon-btn" title="테마 변경">
+          <i class="ri-sun-line light-icon"></i>
+          <i class="ri-moon-clear-line dark-icon"></i>
+        </button>
+        <button id="backup-btn" class="icon-btn" title="데이터 백업 및 복구">
+          <i class="ri-database-2-line"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Statistics Card -->
+    <section class="dashboard-card glass-panel">
+      <div class="dash-item main-progress">
+        <div class="progress-ring-container">
+          <svg class="progress-ring" width="80" height="80">
+            <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="transparent" r="32" cx="40" cy="40"/>
+            <circle class="progress-ring__circle" id="progress-circle" stroke="url(#gradient)" stroke-width="8" stroke-dasharray="201.06" stroke-dashoffset="201.06" stroke-linecap="round" fill="transparent" r="32" cx="40" cy="40"/>
+            <defs>
+              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6366f1" />
+                <stop offset="100%" stop-color="#a855f7" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="progress-percent" id="progress-percentage">0%</span>
+        </div>
+        <div class="progress-info">
+          <h3>오늘의 달성률</h3>
+          <p id="progress-status-text">차근차근 하나씩 완료해 보세요!</p>
+        </div>
+      </div>
+
+      <div class="dash-metrics">
+        <div class="metric-box">
+          <div class="metric-icon total"><i class="ri-list-check"></i></div>
+          <div class="metric-data">
+            <span class="metric-value" id="total-count">0</span>
+            <span class="metric-label">전체 작업</span>
+          </div>
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-icon active"><i class="ri-time-line"></i></div>
+          <div class="metric-data">
+            <span class="metric-value" id="active-count">0</span>
+            <span class="metric-label">진행 중</span>
+          </div>
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-icon completed"><i class="ri-checkbox-circle-line"></i></div>
+          <div class="metric-data">
+            <span class="metric-value" id="completed-count">0</span>
+            <span class="metric-label">완료됨</span>
+          </div>
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-icon urgent"><i class="ri-fire-line"></i></div>
+          <div class="metric-data">
+            <span class="metric-value" id="high-priority-count">0</span>
+            <span class="metric-label">높은 우선순위</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Layout -->
+    <main class="main-content">
+      <!-- Create Task Panel -->
+      <section class="task-form-panel glass-panel">
+        <div class="panel-header">
+          <h2><i class="ri-add-circle-line"></i> 새 할 일 등록</h2>
+        </div>
+        <form id="add-task-form" class="task-form">
+          <div class="form-group full-width">
+            <input type="text" id="task-title" placeholder="어떤 일을 하셔야 하나요?" required autocomplete="off">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label><i class="ri-bookmark-line"></i> 카테고리</label>
+              <select id="task-category">
+                <option value="work">💼 업무</option>
+                <option value="personal">👤 개인</option>
+                <option value="shopping">🛒 쇼핑</option>
+                <option value="goal">🎯 목표</option>
+                <option value="health">💊 건강</option>
+                <option value="idea">💡 아이디어</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label><i class="ri-flag-line"></i> 우선순위</label>
+              <select id="task-priority">
+                <option value="high">🔴 높음</option>
+                <option value="medium" selected>🟡 중간</option>
+                <option value="low">🟢 낮음</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label><i class="ri-calendar-line"></i> 마감일</label>
+              <input type="date" id="task-duedate">
+            </div>
+          </div>
+
+          <div class="form-group full-width note-group">
+            <textarea id="task-note" rows="2" placeholder="메모나 상세 설명 (선택사항)"></textarea>
+          </div>
+
+          <button type="submit" class="primary-btn full-width">
+            <i class="ri-add-line"></i> 할 일 추가하기
+          </button>
+        </form>
+      </section>
+
+      <!-- Task Controls & List Section -->
+      <section class="task-list-panel glass-panel">
+        <!-- Controls Bar -->
+        <div class="controls-bar">
+          <div class="search-box">
+            <i class="ri-search-line"></i>
+            <input type="text" id="search-input" placeholder="할 일 또는 메모 검색...">
+            <button id="clear-search" class="clear-search-btn hidden"><i class="ri-close-line"></i></button>
+          </div>
+
+          <div class="filter-sort-group">
+            <div class="select-wrapper">
+              <i class="ri-filter-3-line"></i>
+              <select id="filter-category">
+                <option value="all">모든 카테고리</option>
+                <option value="work">💼 업무</option>
+                <option value="personal">👤 개인</option>
+                <option value="shopping">🛒 쇼핑</option>
+                <option value="goal">🎯 목표</option>
+                <option value="health">💊 건강</option>
+                <option value="idea">💡 아이디어</option>
+              </select>
+            </div>
+
+            <div class="select-wrapper">
+              <i class="ri-sort-asc"></i>
+              <select id="sort-by">
+                <option value="newest">최신순</option>
+                <option value="oldest">오래된순</option>
+                <option value="dueDate">마감일순</option>
+                <option value="priority">우선순위순</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+          <button class="tab-btn active" data-tab="all">
+            전체 <span class="tab-badge" id="tab-all-count">0</span>
+          </button>
+          <button class="tab-btn" data-tab="active">
+            진행 중 <span class="tab-badge" id="tab-active-count">0</span>
+          </button>
+          <button class="tab-btn" data-tab="completed">
+            완료됨 <span class="tab-badge" id="tab-completed-count">0</span>
+          </button>
+          
+          <button id="clear-completed-btn" class="text-danger-btn" title="완료된 할 일 전체 삭제">
+            <i class="ri-delete-bin-7-line"></i> 완료 항목 삭제
+          </button>
+        </div>
+
+        <!-- Task List Container -->
+        <div class="task-list-wrapper">
+          <ul id="task-list" class="task-list">
+            <!-- Dynamic task items injected via JavaScript -->
+          </ul>
+          
+          <!-- Empty State Container -->
+          <div id="empty-state" class="empty-state hidden">
+            <div class="empty-illustration">
+              <i class="ri-inbox-archive-line"></i>
+            </div>
+            <h3 id="empty-title">등록된 할 일이 없습니다</h3>
+            <p id="empty-desc">새로운 목표나 작업을 작성하여 하루를 알차게 시작해보세요!</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Edit Task Modal -->
+  <div id="edit-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h3><i class="ri-edit-box-line"></i> 할 일 수정</h3>
+        <button class="close-modal-btn" id="close-edit-modal"><i class="ri-close-line"></i></button>
+      </div>
+      <form id="edit-task-form">
+        <input type="hidden" id="edit-task-id">
+        <div class="form-group full-width">
+          <label>할 일 제목</label>
+          <input type="text" id="edit-task-title" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>카테고리</label>
+            <select id="edit-task-category">
+              <option value="work">💼 업무</option>
+              <option value="personal">👤 개인</option>
+              <option value="shopping">🛒 쇼핑</option>
+              <option value="goal">🎯 목표</option>
+              <option value="health">💊 건강</option>
+              <option value="idea">💡 아이디어</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>우선순위</label>
+            <select id="edit-task-priority">
+              <option value="high">🔴 높음</option>
+              <option value="medium">🟡 중간</option>
+              <option value="low">🟢 낮음</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>마감일</label>
+            <input type="date" id="edit-task-duedate">
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label>메모</label>
+          <textarea id="edit-task-note" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancel-edit-btn">취소</button>
+          <button type="submit" class="primary-btn">저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Backup & Export/Import Modal -->
+  <div id="backup-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h3><i class="ri-database-2-line"></i> 데이터 백업 및 복구</h3>
+        <button class="close-modal-btn" id="close-backup-modal"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="backup-modal-body">
+        <div class="backup-option-box">
+          <div class="option-desc">
+            <h4><i class="ri-download-cloud-2-line"></i> 데이터 내보내기 (JSON)</h4>
+            <p>현재 저장된 할 일 및 설정 데이터를 백업 파일로 저장합니다.</p>
+          </div>
+          <button id="export-json-btn" class="secondary-btn"><i class="ri-file-download-line"></i> 백업 파일 다운로드</button>
+        </div>
+        <hr class="modal-divider">
+        <div class="backup-option-box">
+          <div class="option-desc">
+            <h4><i class="ri-upload-cloud-2-line"></i> 데이터 불러오기 (JSON)</h4>
+            <p>이전에 백업한 JSON 파일을 업로드하여 데이터를 복원합니다.</p>
+          </div>
+          <input type="file" id="import-json-input" accept=".json" class="hidden">
+          <button id="import-json-btn" class="secondary-btn"><i class="ri-file-upload-line"></i> 파일 선택하여 복원</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
