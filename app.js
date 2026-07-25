@@ -67,6 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const cancelSyncBtn = document.getElementById('cancel-sync-btn');
   const saveSyncCodeBtn = document.getElementById('save-sync-code-btn');
   const syncCodeInput = document.getElementById('sync-code-input');
+  const forceUploadBtn = document.getElementById('force-upload-btn');
+  const forceDownloadBtn = document.getElementById('force-download-btn');
 
   // Set today's date in header & date input default
   initHeaderDate();
@@ -88,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Failed to parse saved tasks', e);
       }
     }
-    // Return sample demo data on first launch
     const todayStr = new Date().toISOString().split('T')[0];
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -166,20 +167,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------------------------------
-  // 4. Real-time Cloud Sync Engine (Firebase Realtime DB REST Backend)
+  // 4. Real-time Cloud Sync Engine
   // --------------------------------------------------------------------------
   function getSyncEndpoint() {
     const cleanCode = encodeURIComponent(syncCode.trim().toLowerCase());
-    return `https://taskcraft-sync-default-rtdb.firebaseio.com/user_sync/${cleanCode}.json`;
+    return `https://taskcraft-sync-default-rtdb.firebaseio.com/user_sync_v2/${cleanCode}.json`;
   }
 
   function initCloudSync() {
     syncCodeInput.value = syncCode;
     pullFromCloudSync();
-    // Poll cloud sync every 2.5 seconds for real-time instant update across PC and Mobile
-    setInterval(pullFromCloudSync, 2500);
 
-    // Sync immediately when window becomes visible / focused
+    // Poll cloud sync every 2 seconds for instant real-time sync across PC & Mobile
+    setInterval(pullFromCloudSync, 2000);
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         pullFromCloudSync();
@@ -228,6 +229,9 @@ document.addEventListener('DOMContentLoaded', () => {
         tasks = data.tasks;
         saveTasks(true); // Save locally without re-pushing
         renderApp();
+      } else if (!data && tasks.length > 0) {
+        // If cloud is empty, automatically upload local tasks
+        pushToCloudSync();
       }
       if (syncDot) syncDot.className = 'sync-dot';
     } catch (e) {
@@ -236,6 +240,20 @@ document.addEventListener('DOMContentLoaded', () => {
       isSyncing = false;
     }
   }
+
+  // Force Manual Push/Pull Handlers
+  forceUploadBtn.addEventListener('click', async () => {
+    await pushToCloudSync();
+    syncModal.classList.add('hidden');
+    showToast('현재 기기의 할 일이 구름으로 업로드되었습니다! ☁️', 'success');
+  });
+
+  forceDownloadBtn.addEventListener('click', async () => {
+    lastSyncTimestamp = 0; // Force pull
+    await pullFromCloudSync();
+    syncModal.classList.add('hidden');
+    showToast('구름에서 최신 할 일을 다운로드했습니다! ☁️', 'success');
+  });
 
   // Sync Modal Handlers
   syncStatusBtn.addEventListener('click', () => {
@@ -246,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
   closeSyncModalBtn.addEventListener('click', () => syncModal.classList.add('hidden'));
   cancelSyncBtn.addEventListener('click', () => syncModal.classList.add('hidden'));
 
-  saveSyncCodeBtn.addEventListener('click', () => {
+  saveSyncCodeBtn.addEventListener('click', async () => {
     const newCode = syncCodeInput.value.trim();
     if (!newCode) {
       alert('동기화 코드를 입력해 주세요.');
@@ -254,11 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     syncCode = newCode;
     localStorage.setItem(STORAGE_KEY_SYNC_CODE, syncCode);
-    lastSyncTimestamp = 0; // Force refresh from new sync room
-    pushToCloudSync();
-    pullFromCloudSync();
+    lastSyncTimestamp = 0;
+    await pushToCloudSync();
+    await pullFromCloudSync();
     syncModal.classList.add('hidden');
-    showToast(`동기화 코드가 '${syncCode}'(으)로 연동되었습니다!`, 'success');
+    showToast(`동기화 코드가 '${syncCode}'(으)로 연결되었습니다!`, 'success');
   });
 
   // --------------------------------------------------------------------------
