@@ -586,6 +586,7 @@ body {
 .filter-sort-group {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .select-wrapper {
@@ -612,6 +613,63 @@ body {
   font-weight: 500;
   outline: none;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-wrapper select:focus {
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+.date-filter-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-filter-wrapper i {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+  font-size: 15px;
+}
+
+.date-filter-wrapper input[type="date"] {
+  padding: 10px 30px 10px 34px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.date-filter-wrapper input[type="date"]:focus {
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+.clear-date-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.clear-date-btn:hover {
+  color: #ef4444;
 }
 
 /* Filter Tabs */
@@ -823,6 +881,12 @@ body {
   color: var(--text-secondary);
   background: var(--bg-primary);
   border: 1px solid var(--card-border);
+}
+
+.created-date-badge {
+  color: var(--primary-accent);
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
 .duedate-badge.overdue {

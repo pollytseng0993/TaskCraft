@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentCategory = 'all';
   let currentSort = 'newest';
   let searchQuery = '';
+  let currentCreatedDate = '';
 
   // DOM Elements
   const taskListEl = document.getElementById('task-list');
@@ -25,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('search-input');
   const clearSearchBtn = document.getElementById('clear-search');
   const filterCategorySelect = document.getElementById('filter-category');
+  const filterStatusSelect = document.getElementById('filter-status');
+  const filterCreatedDateInput = document.getElementById('filter-created-date');
+  const clearDateFilterBtn = document.getElementById('clear-date-filter');
   const sortBySelect = document.getElementById('sort-by');
   const tabBtns = document.querySelectorAll('.tab-btn');
   const clearCompletedBtn = document.getElementById('clear-completed-btn');
@@ -222,6 +226,31 @@ document.addEventListener('DOMContentLoaded', () => {
     renderApp();
   });
 
+  if (filterCreatedDateInput) {
+    filterCreatedDateInput.addEventListener('change', (e) => {
+      currentCreatedDate = e.target.value;
+      if (clearDateFilterBtn) clearDateFilterBtn.classList.toggle('hidden', !currentCreatedDate);
+      renderApp();
+    });
+  }
+
+  if (clearDateFilterBtn) {
+    clearDateFilterBtn.addEventListener('click', () => {
+      if (filterCreatedDateInput) filterCreatedDateInput.value = '';
+      currentCreatedDate = '';
+      clearDateFilterBtn.classList.add('hidden');
+      renderApp();
+    });
+  }
+
+  if (filterStatusSelect) {
+    filterStatusSelect.addEventListener('change', (e) => {
+      currentFilterTab = e.target.value;
+      tabBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === currentFilterTab));
+      renderApp();
+    });
+  }
+
   filterCategorySelect.addEventListener('change', (e) => { currentCategory = e.target.value; renderApp(); });
   sortBySelect.addEventListener('change', (e) => { currentSort = e.target.value; renderApp(); });
 
@@ -230,15 +259,30 @@ document.addEventListener('DOMContentLoaded', () => {
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilterTab = btn.getAttribute('data-tab');
+      if (filterStatusSelect) filterStatusSelect.value = currentFilterTab;
       renderApp();
     });
   });
+
+  function formatDateToYYYYMMDD(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
 
   function getFilteredAndSortedTasks() {
     return tasks.filter(task => {
       if (currentFilterTab === 'active' && task.completed) return false;
       if (currentFilterTab === 'completed' && !task.completed) return false;
       if (currentCategory !== 'all' && task.category !== currentCategory) return false;
+      if (currentCreatedDate) {
+        const taskCreatedStr = formatDateToYYYYMMDD(task.createdAt);
+        if (taskCreatedStr !== currentCreatedDate) return false;
+      }
       if (searchQuery) {
         const inTitle = task.title.toLowerCase().includes(searchQuery);
         const inNote = task.note && task.note.toLowerCase().includes(searchQuery);
@@ -269,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     taskListEl.innerHTML = '';
     if (visible.length === 0) {
       emptyStateEl.classList.remove('hidden');
-      const hasFilter = searchQuery || currentCategory !== 'all' || currentFilterTab !== 'all';
+      const hasFilter = searchQuery || currentCategory !== 'all' || currentFilterTab !== 'all' || currentCreatedDate;
       document.getElementById('empty-title').textContent = hasFilter ? '검색 또는 필터 결과가 없습니다' : '등록된 할 일이 없습니다';
       document.getElementById('empty-desc').textContent = hasFilter ? '다른 검색어나 필터 조건을 시도해보세요.' : '새로운 목표나 작업을 작성하여 하루를 알차게 시작해보세요!';
     } else {
@@ -334,6 +378,9 @@ document.addEventListener('DOMContentLoaded', () => {
       dueDateHTML = `<span class="badge duedate-badge ${cls}"><i class="ri-calendar-line"></i> ${label}</span>`;
     }
 
+    const createdStr = formatDateToYYYYMMDD(task.createdAt);
+    const createdBadgeHTML = createdStr ? `<span class="badge created-date-badge" title="등록일: ${createdStr}"><i class="ri-time-line"></i> 등록: ${createdStr}</span>` : '';
+
     li.innerHTML = `
       <div class="task-checkbox-wrapper">
         <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
@@ -347,6 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="task-badges">
           <span class="badge category-badge ${cat.cls}">${cat.icon} ${cat.name}</span>
           <span class="badge priority-badge ${prio.cls}">우선순위: ${prio.name}</span>
+          ${createdBadgeHTML}
           ${dueDateHTML}
         </div>
       </div>

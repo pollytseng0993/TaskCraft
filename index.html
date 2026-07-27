@@ -162,6 +162,21 @@
             <button id="clear-search" class="clear-search-btn hidden"><i class="ri-close-line"></i></button>
           </div>
           <div class="filter-sort-group">
+            <div class="date-filter-wrapper" title="등록 날짜 필터">
+              <i class="ri-calendar-event-line"></i>
+              <input type="date" id="filter-created-date" aria-label="등록 날짜 선택">
+              <button id="clear-date-filter" class="clear-date-btn hidden" title="등록 날짜 필터 초기화">
+                <i class="ri-close-line"></i>
+              </button>
+            </div>
+            <div class="select-wrapper">
+              <i class="ri-checkbox-circle-line"></i>
+              <select id="filter-status">
+                <option value="all">전체 상태</option>
+                <option value="active">⏳ 진행 중</option>
+                <option value="completed">✅ 완료됨</option>
+              </select>
+            </div>
             <div class="select-wrapper">
               <i class="ri-filter-3-line"></i>
               <select id="filter-category">
